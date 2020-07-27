@@ -1,5 +1,8 @@
 # SandBox
 general use repository
 
-# bug - sometimes crashes at the second point of the second polyline
-# to add - detect bbox in poly area
+# Bugs
+ - sometimes crashes at the second point of the second polyline
+
+# ToDo
+ - detect bbox in poly area
