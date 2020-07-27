@@ -2,7 +2,6 @@
 general use repository
 
 # Bugs
- - sometimes crashes at the second point of the second polyline
-
+ - none known
 # ToDo
  - detect bbox in poly area
