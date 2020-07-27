@@ -69,7 +69,6 @@ class App:
 
     def markPoly(self):
         self.markFlag = 1
-        self.btn_polygon.config(relief="sunken")
 
     def snapshot(self):
         # Get a frame from the video source
@@ -100,7 +99,6 @@ class App:
                 self.posList.append([x,y])
             if (len(self.posList) == 4) and (self.markFlag == 1):
                 self.markFlag = 0
-                self.btn_polygon.config(relief="raised")
 
     def update(self):
         # Get a frame from the video source
@@ -112,15 +110,18 @@ class App:
                 cv2.circle(frame,(pt[0],pt[1]),5,(255,0,0),2)
             if len(self.posList) > 1:
                 cv2.line(frame,(self.posList[0][0],self.posList[0][1]), (self.posList[1][0], self.posList[1][1]),(0,0,255),1)
+            if len(self.posList) > 2:
+                cv2.line(frame,(self.posList[1][0],self.posList[1][1]), (self.posList[2][0], self.posList[2][1]),(0,0,255),1)
             if len(self.posList) > 3:
                 cv2.line(frame,(self.posList[2][0],self.posList[2][1]), (self.posList[3][0], self.posList[3][1]),(0,0,255),1)
+                cv2.line(frame,(self.posList[0][0],self.posList[0][1]), (self.posList[3][0], self.posList[3][1]),(0,0,255),1)
             cv2.imshow("Vid", frame)
             
-        self.window.after(self.delay, self.update)
+        #self.window.after(self.delay, self.update)
 
     def updateImages(self):
         cv2.namedWindow('Vid')
-        cv2.setMouseCallback('Vid',self.draw_circle)
+        cv2.setMouseCallback('Vid', self.draw_circle)
         
         if (len(self.data)<=self.frameID):
             self.frameID = 0
@@ -133,12 +134,11 @@ class App:
 
         # Draw Poligon
         for pt in self.posList:
-            cv2.circle(frame,(pt[0],pt[1]),5,(255,0,0),2)
-        if len(self.posList) > 1:
-            cv2.line(frame,(self.posList[0][0],self.posList[0][1]), (self.posList[1][0], self.posList[1][1]),(0,0,255), 1)
-        if len(self.posList) > 3:
-            cv2.line(frame,(self.posList[2][0],self.posList[2][1]), (self.posList[3][0], self.posList[3][1]),(0,0,255), 1)
-
+            if len(self.posList) > 1:
+                cv2.polylines(frame, [np.array(self.posList)], True, (0,0,255), 1)
+            else:
+                cv2.circle(frame,(pt[0],pt[1]),5,(0,0,255),1)
+    
         # Draw Tracks
         for line in self.Tracks:
             line = line[:-1].split(',')
