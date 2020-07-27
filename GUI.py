@@ -192,4 +192,4 @@ class MyVideoCapture:
 
 # Create a window and pass it to the Application object
 # App(tkinter.Tk(), "Testing GUI", 0 ,"videoplayback.mp4") # for video
-App(tkinter.Tk(), "Testing GUI", "C:\\work\\images" ,0) # for images
+App(tkinter.Tk(), "Testing GUI", "images" ,0) # for images
