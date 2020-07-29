@@ -1,26 +1,37 @@
 import tkinter
+from tkinter import messagebox
 import cv2
 import PIL.Image, PIL.ImageTk
 import time
 import glob
 import numpy as np
+from martinez.contour import Contour
+from martinez.point import Point
+from martinez.polygon import Polygon
+from martinez.boolean import OperationType, compute
 
 def parseTXT(txtfile):
     file = open(txtfile, 'r') 
     return txtfile, file.readlines()
-
 
 class App:
     def __init__(self, window, window_title, data_source=0, video_source=0):
         self.window = window
         self.window.title(window_title)
         self.video_source = video_source
-        self.markFlag = 0
-        self.posList = []
-        self.frameID = 0
-        self.chosenTrack = 0
-        self.Tracks = []
+        self.markFlag = 0   # Mark intereset area
+        self.posList = []   # List of marked positions
+        self.pointList = [] # List of marked position (type Point)
+        self.frameID = 0    # Current frameID
+        self.chosenTrack = 0# Chosen track ID
+        self.Tracks = []    # list of Tracks in image
+        self.skipFrames = 0
+        self.polyShape = Polygon([Contour([Point(-1,-1), Point(-2,-2), Point(-2,-1)],[],True)])
         self.window.attributes("-topmost", True)
+        self.window.protocol("WM_DELETE_WINDOW", self.on_closing)
+        self.window.attributes("-toolwindow", 1)
+        self.window.attributes("-alpha", 0.7)
+        
         # open video source (by default this will try to open the computer webcam)
         self.vid = MyVideoCapture(self.video_source)
 
@@ -41,7 +52,7 @@ class App:
         self.btn_prev.pack(side="left", expand=True)
 
         # Button that lets the user take a snapshot
-        self.btn_snapshot=tkinter.Button(self.nav, text="Snapshot",  command=self.snapshot)
+        self.btn_snapshot=tkinter.Button(self.nav, text="Play/Stop",  command=self.play)
         self.btn_snapshot.pack(side="left", expand=True)
         
         # Button that lets the user take a snapshot
@@ -49,12 +60,10 @@ class App:
         self.btn_next.pack(side="left", expand=True)
 
         # After it is called once, the update method will be automatically called every delay milliseconds
-        self.delay = 5
+        self.delay = 100
         if (video_source == 0) and not (data_source == 0):
             self.data = glob.glob(data_source + "\\*.txt")
             self.updateImages()
-        else:
-            self.update()
 
         self.window.mainloop()
 
@@ -63,20 +72,29 @@ class App:
 
     def prevImage(self):
         self.frameID = self.frameID - 1
+
+    def on_closing(self):
+        if messagebox.askokcancel("Quit", "Do you want to quit?"):
+            self.window.destroy()
     
     def clearPoly(self):
         self.posList = []
+        self.pointList = []
+        self.polyShape = Polygon([Contour([Point(-1,-1), Point(-2,-2), Point(-2,-1)],[],True)])
 
     def markPoly(self):
         self.markFlag = 1
 
-    def snapshot(self):
+    def play(self):
         # Get a frame from the video source
-        ret, frame = self.vid.get_frame()
-        if ret:
-            cv2.imwrite("frame-" + time.strftime("%d-%m-%Y-%H-%M-%S") + ".jpg", cv2.cvtColor(frame, cv2.COLOR_RGB2BGR))
+        if self.skipFrames == 0:
+            self.skipFrames = 100
+        else:
+            self.skipFrames = 0
 
     def draw_circle(self, event,x,y,flags,param):
+        if event == cv2.EVENT_RBUTTONDOWN:
+            self.markFlag = 0
         if event == cv2.EVENT_LBUTTONDOWN:
             if self.markFlag == 0:
                 bestDist = 10000
@@ -87,42 +105,25 @@ class App:
                     middleXdist = (int(bbox[0]) + int(bbox[2]) // 2) - x
                     middleYdist = (int(bbox[1]) + int(bbox[3]) // 2) - y
                     dist = np.sqrt(middleXdist*middleXdist + middleYdist*middleYdist)
-                    print("middleXdist " + str(middleXdist))
-                    print("middleYdist " + str(middleYdist))
-                    print("dist " + str(dist))
+
                     if dist < bestDist:
                         bestDist=dist
                         chosen = int(line[3])
                 self.chosenTrack = chosen
             
-            if (len(self.posList) < 4) and (self.markFlag == 1):
-                self.posList.append([x,y])
-            if (len(self.posList) == 4) and (self.markFlag == 1):
-                self.markFlag = 0
+            if (self.markFlag == 1):
+                self.posList.append([x,y])    
+                self.pointList.append(Point(x,y))
+                if (len(self.posList) > 2):
+                    self.polyShape = Polygon([Contour(self.pointList,[],True)])
 
-    def update(self):
-        # Get a frame from the video source
-        ret, frame = self.vid.get_frame()
-        if ret:
-            cv2.namedWindow('Vid')
-            cv2.setMouseCallback('Vid',self.draw_circle)
-            for pt in self.posList:
-                cv2.circle(frame,(pt[0],pt[1]),5,(255,0,0),2)
-            if len(self.posList) > 1:
-                cv2.line(frame,(self.posList[0][0],self.posList[0][1]), (self.posList[1][0], self.posList[1][1]),(0,0,255),1)
-            if len(self.posList) > 2:
-                cv2.line(frame,(self.posList[1][0],self.posList[1][1]), (self.posList[2][0], self.posList[2][1]),(0,0,255),1)
-            if len(self.posList) > 3:
-                cv2.line(frame,(self.posList[2][0],self.posList[2][1]), (self.posList[3][0], self.posList[3][1]),(0,0,255),1)
-                cv2.line(frame,(self.posList[0][0],self.posList[0][1]), (self.posList[3][0], self.posList[3][1]),(0,0,255),1)
-            cv2.imshow("Vid", frame)
-            
-        #self.window.after(self.delay, self.update)
 
     def updateImages(self):
-        cv2.namedWindow('Vid')
+        cv2.namedWindow('Vid', cv2.WND_PROP_FULLSCREEN)
+        cv2.setWindowProperty("Vid", cv2.WND_PROP_FULLSCREEN, cv2.WINDOW_FULLSCREEN)
         cv2.setMouseCallback('Vid', self.draw_circle)
         
+        self.frameID = self.frameID + self.skipFrames
         if (len(self.data)<=self.frameID):
             self.frameID = 0
         if (self.frameID < 0):
@@ -133,11 +134,14 @@ class App:
         frame = cv2.imread(currentImage[:-3] + "jpg")
 
         # Draw Poligon
-        for pt in self.posList:
-            if len(self.posList) > 1:
-                cv2.polylines(frame, [np.array(self.posList)], True, (0,0,255), 1)
-            else:
-                cv2.circle(frame,(pt[0],pt[1]),5,(0,0,255),1)
+        for pt in self.posList:               
+            cv2.circle(frame,(pt[0],pt[1]),5,(0,0,255),1)
+
+        if len(self.posList) > 1:
+                selectedColor = [0, 0, 0] * np.ones((len(frame), len(frame[0]), 3), np.uint8)
+                imgSelectedColor = np.uint8(np.absolute(selectedColor))
+                cv2.fillPoly(imgSelectedColor, [np.array(self.posList)], (0,0,255),8)
+                frame = cv2.addWeighted(frame, 1, imgSelectedColor, 0.4, 0) 
     
         # Draw Tracks
         for line in self.Tracks:
@@ -145,10 +149,20 @@ class App:
             bbox = line[0].split(' ')
             startPoint = (int(bbox[0]), int(bbox[1]))
             endPoint = (int(bbox[0]) + int(bbox[2]), int(bbox[1])+int(bbox[3]))
-            if self.chosenTrack == int(line[3]):
-                cv2.rectangle(frame, startPoint, endPoint, (100*(int(line[2])-1),255-100*(int(line[2])-1),0), 3)
+            boxPoly = Polygon([Contour([Point(int(bbox[0]), int(bbox[1])), Point(int(bbox[0]), int(bbox[1]) + int(bbox[3])), Point(int(bbox[0]) + int(bbox[2]), int(bbox[1])+int(bbox[3])), Point(int(bbox[0]) + int(bbox[2]), int(bbox[1]))],[],True)])
+            
+            # Sel bounding box color (Red if in Polygon)
+            inter = compute(boxPoly, self.polyShape, OperationType.INTERSECTION)
+            if inter==Polygon([]):
+                color = (100*(int(line[2])-1),255-100*(int(line[2])-1),0)
             else:
-                cv2.rectangle(frame, startPoint, endPoint, (100*(int(line[2])-1),255-100*(int(line[2])-1),0), 1)
+                color = (0,0,255)
+
+
+            if self.chosenTrack == int(line[3]):
+                cv2.rectangle(frame, startPoint, endPoint, color, 3)
+            else:
+                cv2.rectangle(frame, startPoint, endPoint, color, 1)
             
             # draw score
             cv2.putText(frame, "score: " + line[1], (int(bbox[0]), int(bbox[1])+30), cv2.FONT_HERSHEY_SIMPLEX , 0.4, (0,0,255),1)
