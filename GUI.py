@@ -60,7 +60,7 @@ class App:
         self.btn_next.pack(side="left", expand=True)
 
         # After it is called once, the update method will be automatically called every delay milliseconds
-        self.delay = 100
+        self.delay = 30
         if (video_source == 0) and not (data_source == 0):
             self.data = glob.glob(data_source + "\\*.txt")
             self.updateImages()
@@ -88,7 +88,7 @@ class App:
     def play(self):
         # Get a frame from the video source
         if self.skipFrames == 0:
-            self.skipFrames = 100
+            self.skipFrames = 1
         else:
             self.skipFrames = 0
 
@@ -102,13 +102,13 @@ class App:
                 for line in self.Tracks:
                     line = line[:-1].split(',')
                     bbox = line[0].split(' ')
-                    middleXdist = (int(bbox[0]) + int(bbox[2]) // 2) - x
-                    middleYdist = (int(bbox[1]) + int(bbox[3]) // 2) - y
+                    middleXdist = (int(float(bbox[0])) + int(float(bbox[2]))) // 2 - x
+                    middleYdist = (int(float(bbox[1])) + int(float(bbox[3]))) // 2 - y
                     dist = np.sqrt(middleXdist*middleXdist + middleYdist*middleYdist)
 
                     if dist < bestDist:
                         bestDist=dist
-                        chosen = int(line[3])
+                        chosen = int(float(line[3]))
                 self.chosenTrack = chosen
             
             if (self.markFlag == 1):
@@ -124,7 +124,7 @@ class App:
         cv2.setMouseCallback('Vid', self.draw_circle)
         
         self.frameID = self.frameID + self.skipFrames
-        if (len(self.data)<=self.frameID):
+        if (len(self.data) <= self.frameID):
             self.frameID = 0
         if (self.frameID < 0):
             self.frameID = len(self.data) - 1
@@ -147,31 +147,25 @@ class App:
         for line in self.Tracks:
             line = line[:-1].split(',')
             bbox = line[0].split(' ')
-            startPoint = (int(bbox[0]), int(bbox[1]))
-            endPoint = (int(bbox[0]) + int(bbox[2]), int(bbox[1])+int(bbox[3]))
-            boxPoly = Polygon([Contour([Point(int(bbox[0]), int(bbox[1])), Point(int(bbox[0]), int(bbox[1]) + int(bbox[3])), Point(int(bbox[0]) + int(bbox[2]), int(bbox[1])+int(bbox[3])), Point(int(bbox[0]) + int(bbox[2]), int(bbox[1]))],[],True)])
+            startPoint = (int(float(bbox[0])), int(float(bbox[1])))
+            endPoint = (int(float(bbox[2])), int(float(bbox[3])))
+            boxPoly = Polygon([Contour([Point(int(float(bbox[0])), int(float(bbox[1]))), Point(int(float(bbox[0])), int(float(bbox[3]))), Point(int(float(bbox[2])), int(float(bbox[3]))), Point(int(float(bbox[2])), int(float(bbox[1])))],[],True)])
             
             # Sel bounding box color (Red if in Polygon)
             inter = compute(boxPoly, self.polyShape, OperationType.INTERSECTION)
             if inter==Polygon([]):
-                color = (100*(int(line[2])-1),255-100*(int(line[2])-1),0)
+                color = (100*(int(float(line[2]))-1),255-100*(int(float(line[2]))-1),0)
             else:
                 color = (0,0,255)
 
 
-            if self.chosenTrack == int(line[3]):
+            if self.chosenTrack == int(float(line[3])):
                 cv2.rectangle(frame, startPoint, endPoint, color, 3)
             else:
                 cv2.rectangle(frame, startPoint, endPoint, color, 1)
             
-            # draw score
-            cv2.putText(frame, "score: " + line[1], (int(bbox[0]), int(bbox[1])+30), cv2.FONT_HERSHEY_SIMPLEX , 0.4, (0,0,255),1)
-
-            # draw class
-            cv2.putText(frame, "class: " + line[2], (int(bbox[0]), int(bbox[1])+20), cv2.FONT_HERSHEY_SIMPLEX , 0.4, (0,0,255),1)
-            
             # draw track
-            cv2.putText(frame, "track: " + line[3], (int(bbox[0]), int(bbox[1])+10), cv2.FONT_HERSHEY_SIMPLEX , 0.4, (0,0,255),1)
+            cv2.putText(frame, line[3], (int(float(bbox[0])), int(float(bbox[1]))-10), cv2.FONT_HERSHEY_SIMPLEX , 0.4, (0,255,0),1)
 
         cv2.imshow('Vid', frame)
         
@@ -206,4 +200,4 @@ class MyVideoCapture:
 
 # Create a window and pass it to the Application object
 # App(tkinter.Tk(), "Testing GUI", 0 ,"videoplayback.mp4") # for video
-App(tkinter.Tk(), "Testing GUI", "images" ,0) # for images
+App(tkinter.Tk(), "Testing GUI", "more images" ,0) # for images
