@@ -37,7 +37,7 @@ def get_engine(onnx_file_path, engine_file_path="arc.engine"):
                         print (parser.get_error(error))
                     return None
 
-            network.get_input(0).shape = [1, 3, 112, 112]
+            #network.get_input(0).shape = [1, 3, 112, 112]
             print('Completed parsing of ONNX file')
             print('Building an engine from file {}; this may take a while...'.format(onnx_file_path))
             engine = builder.build_cuda_engine(network)
